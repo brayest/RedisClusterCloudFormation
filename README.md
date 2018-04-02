@@ -1,6 +1,6 @@
-# REDIS CLUSTER WITH SENTINEL, CloudFormation and CHEF
+# Redis Cluster with Sentinel, CloudFormation and Chef
 
-This repository contains the necesary scripts and procdedures to deploy a **simple** Redis cluster using Docker Compose with service discovery by Consul, a service registry bridge by Registrator and Redis Sentinel for high availability. Also in includes the procedure and the necesary CloudFormation modules to automate the a **simple** deployment of to AWS using EC2 instances configured by Chef recepies using AWS OpsWorks Chef automate server. This is only the base for improving.
+This repository contains the necesary scripts and procdedures to deploy a **simple** Redis cluster using Docker Compose with service discovery by Consul, a service registry bridge by Registrator and Redis Sentinel for high availability. Also in includes the procedure and the necessary CloudFormation modules to automate the a **simple** deployment to AWS using EC2 instances configured by Chef recepies using AWS OpsWorks Chef automate server. This is only the base for improving.
 
 
 * [Enviroment](#enviroment)
@@ -41,8 +41,8 @@ To do:
 * 1 Internet GW: For internet access.
 * 1 Route table: Route to internet access.
 * 5 Route table Associations: Public subnets route associations.
-* 1 Security groups (ELB, EC2 and ECS): For access, INBOUD and OUTBOUND.
-* 7 EC2 Instance:
+* 1 Security groups: For access, INBOUD and OUTBOUND.
+* 6 EC2 Instance:
 * 1 OpsWork Chef Automate Server
 
 ## Docker Compose
@@ -62,7 +62,7 @@ docker-compose scale slave=3 sentinel=3
 ```
 This will create a Redis Master with 3 Slaves. 3 Sentinel instances will audit the system and decide when and what redis slave takes over the Master role when ever the Master node fails.  You can play with it by stoping the master node and checking the Docker logs or the Redis client information to know how it handles it.  
 
-For example: You can run the following commands in diferent terminals.
+For example: You can run the following commands in different terminals.
 
 ```bash
 docker-compose logs --tail=0 --follow
@@ -70,7 +70,7 @@ docker-compose logs --tail=0 --follow
 ```bash
 docker stop dockerrediscluster_master_1
 ```
-You will be able to see when sentintel tracks and agrees in the Masters downfall, sets the quorum and starts the new Master selection process between the slaves. It takes arround 1 minutes. This what we are going to deploy with CloudFormation and Configure with Chef.
+You will be able to see when sentintel instances track and agree in the Masters downfall, sets the quorum and starts the new Master selection process between the slaves. It takes arround 1 minutes. This what we are going to deploy with CloudFormation and Configure with Chef.
 
 ## AWS
 
@@ -84,11 +84,11 @@ aws ec2 describe-instances --profile YOUR_PROFILE
 If it connects we are good to go.
 
 ### CloudFormation and base infrastructure
-Before we can use CloudFormation we need to set some variables and create a KeyPair in order to access AWS. Open the **RedisCluster.yml** file and modify the *KeyName* parameter and set the Default term to "ChefKey" or what ever you like, but make sure that you create a KeyPair in AWS with the same name and have the **.pem** file downloaded where you are going to be operating the Chef enviroment. Everything should be fine, but just make sure use *us-east-1* as the default region. If you do not want to use that region change it but mke sure to replace the AvailabilityZones of the EC2s and the RegionMaps of the Images.
+Before we can use CloudFormation we need to set some variables and create a KeyPair in order to access AWS. Open the **RedisCluster.yml** file and modify the *KeyName* parameter and set the Default term to "ChefKey" or what ever you like, but make sure that you create a KeyPair in AWS with the same name and have the **.pem** file downloaded where you are going to be operating the Chef enviroment. Everything else should be fine, but just make sure use *us-east-1* as the default region. If you do not want to use that region change it but mke sure to replace the AvailabilityZones of the EC2s and the RegionMaps of the Images.
 
 * Default: 'ChefKey'
 
-After **be sure to create the KeyPair fist** and then run the following to create the base infrastructure.  
+Now, **be sure to create the KeyPair fist** and then run the following to create the base infrastructure.  
 
 ```bash
 aws cloudformation create-stack --stack-name redis-cluster --template-body file://$PWD/RedisCluster.yml --profile YOUR_PROFILE
@@ -105,7 +105,7 @@ This will create the VPC, the necessary Subnets, Routes, IGW and EC2 instances f
 
 ### OpsWork Chef Automate Server
 
-In order to operate Chef we take advantage of the OpsWork service which in the free tier we may have up to 10 nodes to operate. But be aware **YOU WILL BE CHANGE FOR THE EC2 INSTANCE** which is large. In the Development or this example there was a $1.20 fee just because of the m4.large instance type running for arroud $0.10 per hour.
+In order to operate Chef we take advantage of the OpsWork service which in the free tier we may have up to 10 nodes to operate. But be aware **YOU WILL BE CHANGE FOR THE EC2 INSTANCE** which is an m4.large instance. In the Development or this example there was a $1.20 fee just because of the m4.large instance type was running for arroud $0.10 per hour.
 
 Now, once CloudFormation finishes we can create the OpsWork server. So go the console and search for OpsWork. Choose the Chef Automate Server, name it "RedisCluster" or however you like. Choose the Region (us-east-1 if didn't change it)  Choose the your KeyPair (ChefKey), Select Redis Cluster as your VPC, Choose the public subnet (us-east-1a) and disable the Enable automated backup option if your want. Everything else should be fine as it is.
 
@@ -113,7 +113,7 @@ The process takes arround 15 min. We need to download the sign-in credentials an
 
 While the server is starting do the following:
 
-* 1 Unzip the Starter kitche
+* 1 Unzip the Starter kit
 * 2 Rename the new folder to rediscluster (if you want)
 * 3 Copy the content of cookbooks into the unzipped Starter kit cookbooks folder.
 * 4 Copy the bootstrap folder into the unzipped Starter kit folder.
@@ -173,7 +173,7 @@ knife ssl check
 Connecting to host rediscluster-hkuhqq7hxozoerq4.us-east-1.opsworks-cm.io:443
 Successfully verified certificates from rediscluster-hkuhqq7hxozoerq4.us-east-1.opsworks-cm.io
 ```
-if your get the above connection result we can begin our configurationv with Chef running:
+if your get the above connection result we can begin our configuration with Chef by running:
 
 ```bash
 ./bootstrap_instances.sh
@@ -193,7 +193,7 @@ ssh -i ChefKey.pem ubuntu@54.90.79.119
 sudo docker-compose stop
 ```
 
-Go back to the WebApp and refresh, it takes arround 1 min to (30 seconds actually) to show the master replacement. If you want you can restart the "Master" node again and se it become a Slave Now
+Go back to the WebApp and refresh, it takes arround 1 min to (30 seconds actually) to show the master replacement. If you want you can restart the "Master" node again and watch it become a Slave.
 
 ```bash
 sudo su
