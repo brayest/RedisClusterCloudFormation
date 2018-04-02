@@ -128,5 +128,5 @@ services:
 end
 
 execute 'docker-compose' do
-  command 'w'
+  command 'export LOCAL_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4) && /usr/local/bin/docker-compose -f /home/docker-compose.yml up -d'
 end
