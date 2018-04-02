@@ -1,0 +1,350 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description:
+  Sample template to create a Redis cluster managed by Chef
+Mappings:
+  # Ubuntu 64bit Images by region
+  RegionMap:
+    us-east-1:
+      "Ubuntu": "ami-43a15f3e"
+      "OpenSuse": "ami-5eaf8124"
+  SubnetConfig:
+    VPC:
+      CIDR: 10.1.0.0/16
+    Public:
+      CIDR: 10.1.0.0/24
+    Public1:
+      CIDR: 10.1.1.0/24
+    Public2:
+      CIDR: 10.1.2.0/24
+    Public3:
+      CIDR: 10.1.3.0/24
+    Public4:
+      CIDR: 10.1.4.0/24
+
+Outputs:
+  ConsulIP:
+    Description: Consul Public IP
+    Value:
+      Fn::GetAtt: [ Consul, PublicIp ]
+  AppIP:
+    Description: App Public IP
+    Value:
+      Fn::GetAtt: [ App, PublicIp ]
+  RedisMasterIP:
+    Description: RedisMaster Public IP
+    Value:
+      Fn::GetAtt: [ RedisMaster, PublicIp ]
+  RedisSlave1IP:
+    Description: RedisSlave1 Public IP
+    Value:
+      Fn::GetAtt: [ RedisSlave1, PublicIp ]
+  RedisSlave2IP:
+    Description: RedisSlave2 Public IP
+    Value:
+      Fn::GetAtt: [ RedisSlave2, PublicIp ]
+  RedisSlave3IP:
+    Description: RedisSlave3 Public IP
+    Value:
+      Fn::GetAtt: [ RedisSlave3, PublicIp ]
+
+Parameters:
+  KeyName:
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+    Description: Name of the existing EC2 KeyPair for SSH.
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Default: 'ChefKey'
+  SSHLocation:
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid CIDR range of the form x.x.x.x/x.
+    Default: 0.0.0.0/0
+    Description: Lockdown SSH access (default can be accessed from anywhere)
+    MaxLength: '18'
+    MinLength: '9'
+    Type: String
+  NodeInstanceType:
+    Description: Instance type for nodes.
+    Default: 't2.micro'
+    Type: String
+
+Resources:
+  VPC:
+    Properties:
+      CidrBlock:
+        Fn::FindInMap: [SubnetConfig, "VPC", "CIDR"]
+      EnableDnsHostnames: 'true'
+      EnableDnsSupport: 'true'
+      Tags:
+      - Key: Name
+        Value: Redis Cluster VPC
+      - Key: Application
+        Value:
+          Ref: 'AWS::StackId'
+      - Key: Network
+        Value: Public
+    Type: AWS::EC2::VPC
+
+  GatewayToInternet:
+    Properties:
+      InternetGatewayId:
+        Ref: InternetGateway
+      VpcId:
+        Ref: VPC
+    Type: AWS::EC2::VPCGatewayAttachment
+
+  InternetGateway:
+    Properties:
+      Tags:
+      - Key: Name
+        Value: Redis Cluster IGW
+      - Key: Application
+        Value:
+          Ref: 'AWS::StackId'
+      - Key: Network
+        Value: Public
+    Type: AWS::EC2::InternetGateway
+
+  PublicRoute:
+    DependsOn: GatewayToInternet
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: {Ref: InternetGateway}
+      RouteTableId: {Ref: PublicRouteTable}
+    Type: AWS::EC2::Route
+
+  PublicRouteTable:
+    Properties:
+      Tags:
+      - Key: Name
+        Value: Redis Cluster Public Route
+      - Key: Application
+        Value: {Ref: 'AWS::StackId'}
+      - Key: Network
+        Value: Public
+      VpcId: {Ref: VPC}
+    Type: AWS::EC2::RouteTable
+
+  PublicSubnet:
+    Properties:
+      CidrBlock:
+        Fn::FindInMap: [SubnetConfig, "Public", "CIDR"]
+      MapPublicIpOnLaunch: True
+      AvailabilityZone: us-east-1a
+      Tags:
+      - Key: Name
+        Value: Public
+      - Key: Application
+        Value:
+          Ref: 'AWS::StackId'
+      - Key: Network
+        Value: Public
+      VpcId: {Ref: VPC}
+    Type: AWS::EC2::Subnet
+
+
+  PublicSubnet1:
+    Properties:
+      CidrBlock:
+        Fn::FindInMap: [SubnetConfig, "Public1", "CIDR"]
+      MapPublicIpOnLaunch: True
+      AvailabilityZone: us-east-1b
+      Tags:
+      - Key: Name
+        Value: Nodes
+      - Key: Application
+        Value:
+          Ref: 'AWS::StackId'
+      - Key: Network
+        Value: Public
+      VpcId: {Ref: VPC}
+    Type: AWS::EC2::Subnet
+
+  PublicSubnet2:
+    Properties:
+      CidrBlock:
+        Fn::FindInMap: [SubnetConfig, "Public2", "CIDR"]
+      MapPublicIpOnLaunch: True
+      AvailabilityZone: us-east-1c
+      Tags:
+      - Key: Name
+        Value: Nodes
+      - Key: Application
+        Value:
+          Ref: 'AWS::StackId'
+      - Key: Network
+        Value: Public
+      VpcId: {Ref: VPC}
+    Type: AWS::EC2::Subnet
+
+  PublicSubnet3:
+    Properties:
+      CidrBlock:
+        Fn::FindInMap: [SubnetConfig, "Public3", "CIDR"]
+      MapPublicIpOnLaunch: True
+      AvailabilityZone: us-east-1d
+      Tags:
+      - Key: Name
+        Value: Nodes
+      - Key: Application
+        Value:
+          Ref: 'AWS::StackId'
+      - Key: Network
+        Value: Public
+      VpcId: {Ref: VPC}
+    Type: AWS::EC2::Subnet
+
+  PublicSubnet4:
+    Properties:
+      CidrBlock:
+        Fn::FindInMap: [SubnetConfig, "Public4", "CIDR"]
+      MapPublicIpOnLaunch: True
+      AvailabilityZone: us-east-1e
+      Tags:
+      - Key: Name
+        Value: Nodes
+      - Key: Application
+        Value:
+          Ref: 'AWS::StackId'
+      - Key: Network
+        Value: Public
+      VpcId: {Ref: VPC}
+    Type: AWS::EC2::Subnet
+
+  PublicSubnetRouteTableAssociation:
+    Properties:
+      RouteTableId: {Ref: PublicRouteTable}
+      SubnetId: {Ref: PublicSubnet}
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+  PublicSubnetRouteTableAssociation1:
+    Properties:
+      RouteTableId: {Ref: PublicRouteTable}
+      SubnetId: {Ref: PublicSubnet1}
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+  PublicSubnetRouteTableAssociation2:
+    Properties:
+      RouteTableId: {Ref: PublicRouteTable}
+      SubnetId: {Ref: PublicSubnet2}
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+  PublicSubnetRouteTableAssociation3:
+    Properties:
+      RouteTableId: {Ref: PublicRouteTable}
+      SubnetId: {Ref: PublicSubnet3}
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+  PublicSubnetRouteTableAssociation4:
+    Properties:
+      RouteTableId: {Ref: PublicRouteTable}
+      SubnetId: {Ref: PublicSubnet4}
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+
+  NodesSecurityGroup:
+    Properties:
+      GroupDescription: All access allowed
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 0
+        ToPort: 65535
+        CidrIp:
+          Ref: SSHLocation
+      - IpProtocol: udp
+        FromPort: 0
+        ToPort: 65535
+        CidrIp:
+          Ref: SSHLocation
+      VpcId:
+        Ref: VPC
+    Type: AWS::EC2::SecurityGroup
+
+  Consul:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType:
+        Ref: NodeInstanceType
+      ImageId:
+        Fn::FindInMap: [RegionMap, {Ref: "AWS::Region"}, "OpenSuse"]
+      KeyName:
+        Ref: KeyName
+      SecurityGroupIds:
+      - Ref: NodesSecurityGroup
+      SubnetId:
+        Ref: PublicSubnet
+      PrivateIpAddress: 10.1.0.106
+
+
+  App:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType:
+        Ref: NodeInstanceType
+      ImageId:
+        Fn::FindInMap: [RegionMap, {Ref: "AWS::Region"}, "Ubuntu"]
+      KeyName:
+        Ref: KeyName
+      SecurityGroupIds:
+      - Ref: NodesSecurityGroup
+      SubnetId:
+        Ref: PublicSubnet
+      PrivateIpAddress: 10.1.0.101
+
+  RedisMaster:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType:
+        Ref: NodeInstanceType
+      ImageId:
+        Fn::FindInMap: [RegionMap, {Ref: "AWS::Region"}, "Ubuntu"]
+      KeyName:
+        Ref: KeyName
+      SecurityGroupIds:
+      - Ref: NodesSecurityGroup
+      SubnetId:
+        Ref: PublicSubnet1
+      PrivateIpAddress: 10.1.1.10
+
+  RedisSlave1:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType:
+        Ref: NodeInstanceType
+      ImageId:
+        Fn::FindInMap: [RegionMap, {Ref: "AWS::Region"}, "Ubuntu"]
+      KeyName:
+        Ref: KeyName
+      SecurityGroupIds:
+      - Ref: NodesSecurityGroup
+      SubnetId:
+        Ref: PublicSubnet2
+      PrivateIpAddress: 10.1.2.10
+
+  RedisSlave2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType:
+        Ref: NodeInstanceType
+      ImageId:
+        Fn::FindInMap: [RegionMap, {Ref: "AWS::Region"}, "Ubuntu"]
+      KeyName:
+        Ref: KeyName
+      SecurityGroupIds:
+      - Ref: NodesSecurityGroup
+      SubnetId:
+        Ref: PublicSubnet3
+      PrivateIpAddress: 10.1.3.10
+
+  RedisSlave3:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType:
+        Ref: NodeInstanceType
+      ImageId:
+        Fn::FindInMap: [RegionMap, {Ref: "AWS::Region"}, "Ubuntu"]
+      KeyName:
+        Ref: KeyName
+      SecurityGroupIds:
+      - Ref: NodesSecurityGroup
+      SubnetId:
+        Ref: PublicSubnet4
+      PrivateIpAddress: 10.1.4.10
