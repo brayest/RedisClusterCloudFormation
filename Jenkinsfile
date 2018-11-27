@@ -1,6 +1,6 @@
 pipeline {
     agent { 
-        label 'Slave'
+        label 'lsc-ubuntu1404-ci-robot-latest'
     }
     stages {
         stage('Stage 1') {
